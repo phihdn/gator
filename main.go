@@ -1,15 +1,20 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"os"
 
+	_ "github.com/lib/pq"
+
 	"github.com/phihdn/gator/internal/config"
+	"github.com/phihdn/gator/internal/database"
 )
 
 // state represents the application state that is passed to command handlers
-// It contains references to shared resources like configuration
+// It contains references to shared resources like configuration and database
 type state struct {
+	db  *database.Queries
 	cfg *config.Config
 }
 
@@ -20,9 +25,26 @@ func main() {
 		log.Fatalf("error reading config: %v", err)
 	}
 
-	// Initialize application state with loaded configuration
+	// Connect to the database
+	dbURL := cfg.DBURL
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatalf("error connecting to database: %v", err)
+	}
+	defer db.Close()
+
+	// Test the database connection
+	if err := db.Ping(); err != nil {
+		log.Fatalf("could not ping database: %v", err)
+	}
+
+	// Initialize database queries
+	dbQueries := database.New(db)
+
+	// Initialize application state with loaded configuration and database
 	programState := &state{
 		cfg: &cfg,
+		db:  dbQueries,
 	}
 
 	// Initialize the commands registry
@@ -32,6 +54,7 @@ func main() {
 
 	// Register all available command handlers
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
 
 	// Ensure at least one command argument is provided
 	if len(os.Args) < 2 {

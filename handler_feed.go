@@ -65,3 +65,37 @@ func handlerAddFeed(s *state, cmd command) error {
 
 	return nil
 }
+
+// handlerFeeds processes the feeds command, which lists all feeds in the database
+// It takes no arguments and prints all feeds along with their owner's name
+// Usage: gator feeds
+func handlerFeeds(s *state, cmd command) error {
+	// Validate command arguments - no args expected
+	if len(cmd.Args) != 0 {
+		return fmt.Errorf("usage: %s (takes no arguments)", cmd.Name)
+	}
+
+	// Get all feeds with associated user information
+	feeds, err := s.db.GetAllFeedsWithUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("couldn't get feeds: %w", err)
+	}
+
+	// Check if there are feeds to display
+	if len(feeds) == 0 {
+		fmt.Println("No feeds found in the database")
+		return nil
+	}
+
+	// Display feed information
+	fmt.Printf("Found %d feeds:\n\n", len(feeds))
+	for i, feed := range feeds {
+		fmt.Printf("Feed #%d:\n", i+1)
+		fmt.Printf("  Name: %s\n", feed.Name)
+		fmt.Printf("  URL: %s\n", feed.Url)
+		fmt.Printf("  Created By: %s\n", feed.UserName)
+		fmt.Printf("  Added On: %s\n\n", feed.CreatedAt.Format(time.RFC3339))
+	}
+
+	return nil
+}

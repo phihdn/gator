@@ -4,35 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/phihdn/gator/internal/database"
 )
-
-// handlerReset processes the reset command which deletes all users from the database
-// This is primarily a development tool and should not be used in production
-// Usage: gator reset
-func handlerReset(s *state, cmd command) error {
-	// Validate command arguments - no arguments are required
-	if len(cmd.Args) != 0 {
-		return fmt.Errorf("usage: %s (no arguments required)", cmd.Name)
-	}
-
-	// Delete all users from the database
-	err := s.db.DeleteAllUsers(context.Background())
-	if err != nil {
-		fmt.Printf("Failed to reset database: %v\n", err)
-		os.Exit(1)
-		return nil
-	}
-
-	// Provide user feedback
-	fmt.Println("Database reset successful! All users have been deleted.")
-	return nil
-}
 
 // handlerLogin processes the login command which sets the current user in the config
 // It validates that exactly one argument (username) is provided and that the user exists in the database
@@ -101,6 +78,40 @@ func handlerRegister(s *state, cmd command) error {
 
 	// Provide user feedback and log the user's data
 	fmt.Printf("User '%s' created successfully!\n", name)
-	log.Printf("User created: %+v\n", user)
+	printUser(user)
 	return nil
+}
+
+// handlerListUsers processes the users command which lists all users in the database
+// It marks the currently logged in user with "(current)"
+// Usage: gator users
+func handlerListUsers(s *state, cmd command) error {
+	// Validate command arguments - no arguments are required
+	if len(cmd.Args) != 0 {
+		return fmt.Errorf("usage: %s (no arguments required)", cmd.Name)
+	}
+
+	// Get all users from the database
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("couldn't fetch users: %w", err)
+	}
+
+	// Get the current user from the configuration
+	currentUser := s.cfg.CurrentUserName
+
+	// Print all users, marking the current user
+	for _, user := range users {
+		if user.Name == currentUser {
+			fmt.Printf("* %v (current)\n", user.Name)
+			continue
+		}
+		fmt.Printf("* %v\n", user.Name)
+	}
+	return nil
+}
+
+func printUser(user database.User) {
+	fmt.Printf(" * ID:      %v\n", user.ID)
+	fmt.Printf(" * Name:    %v\n", user.Name)
 }

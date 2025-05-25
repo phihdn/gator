@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -15,9 +14,8 @@ import (
 
 // handlerAddFeed processes the addfeed command, which adds a new feed to the database
 // It expects two arguments: the name of the feed and its URL
-// Before adding the feed, it checks if the current user exists in the database
 // Usage: gator addfeed <name> <url>
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	// Validate command arguments - exactly two args required (name and url)
 	if len(cmd.Args) != 2 {
 		return fmt.Errorf("usage: %s <name> <url>", cmd.Name)
@@ -25,23 +23,6 @@ func handlerAddFeed(s *state, cmd command) error {
 
 	name := cmd.Args[0]
 	url := cmd.Args[1]
-
-	// Get current user from config
-	currentUserName := s.cfg.CurrentUserName
-	if currentUserName == "" {
-		fmt.Println("No user is logged in. Please login first.")
-		os.Exit(1)
-	}
-
-	// Get current user from database
-	user, err := s.db.GetUser(context.Background(), currentUserName)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			fmt.Printf("User '%s' does not exist, please register first.\n", currentUserName)
-			os.Exit(1)
-		}
-		return fmt.Errorf("couldn't find user: %w", err)
-	}
 
 	// Create a new feed record
 	now := time.Now().UTC()
@@ -116,7 +97,7 @@ func handlerAddFeed(s *state, cmd command) error {
 // handlerFeeds processes the feeds command, which lists all feeds in the database
 // It takes no arguments and prints all feeds along with their owner's name
 // Usage: gator feeds
-func handlerFeeds(s *state, cmd command) error {
+func handlerFeeds(s *state, cmd command, user database.User) error {
 	// Validate command arguments - no args expected
 	if len(cmd.Args) != 0 {
 		return fmt.Errorf("usage: %s (takes no arguments)", cmd.Name)
@@ -150,30 +131,13 @@ func handlerFeeds(s *state, cmd command) error {
 // handlerFollowFeed processes the follow command, which allows a user to follow a feed
 // It takes a single URL argument and creates a feed follow record for the current user
 // Usage: gator follow <url>
-func handlerFollowFeed(s *state, cmd command) error {
+func handlerFollowFeed(s *state, cmd command, user database.User) error {
 	// Validate command arguments - exactly one arg required (url)
 	if len(cmd.Args) != 1 {
 		return fmt.Errorf("usage: %s <url>", cmd.Name)
 	}
 
 	url := cmd.Args[0]
-
-	// Get current user from config
-	currentUserName := s.cfg.CurrentUserName
-	if currentUserName == "" {
-		fmt.Println("No user is logged in. Please login first.")
-		os.Exit(1)
-	}
-
-	// Get current user from database
-	user, err := s.db.GetUser(context.Background(), currentUserName)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			fmt.Printf("User '%s' does not exist, please register first.\n", currentUserName)
-			os.Exit(1)
-		}
-		return fmt.Errorf("couldn't find user: %w", err)
-	}
 
 	// Find the feed by URL
 	feed, err := s.db.GetFeedByURL(context.Background(), url)
@@ -214,27 +178,10 @@ func handlerFollowFeed(s *state, cmd command) error {
 // handlerFollowing processes the following command, which lists all feeds a user is following
 // It takes no arguments and displays all feeds the current user is following
 // Usage: gator following
-func handlerFollowing(s *state, cmd command) error {
+func handlerFollowing(s *state, cmd command, user database.User) error {
 	// Validate command arguments - no args expected
 	if len(cmd.Args) != 0 {
 		return fmt.Errorf("usage: %s (takes no arguments)", cmd.Name)
-	}
-
-	// Get current user from config
-	currentUserName := s.cfg.CurrentUserName
-	if currentUserName == "" {
-		fmt.Println("No user is logged in. Please login first.")
-		os.Exit(1)
-	}
-
-	// Get current user from database
-	user, err := s.db.GetUser(context.Background(), currentUserName)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			fmt.Printf("User '%s' does not exist, please register first.\n", currentUserName)
-			os.Exit(1)
-		}
-		return fmt.Errorf("couldn't find user: %w", err)
 	}
 
 	// Get all feed follows for the current user
@@ -245,12 +192,12 @@ func handlerFollowing(s *state, cmd command) error {
 
 	// Check if there are any feed follows to display
 	if len(feedFollows) == 0 {
-		fmt.Printf("User '%s' is not following any feeds\n", currentUserName)
+		fmt.Printf("User '%s' is not following any feeds\n", user.Name)
 		return nil
 	}
 
 	// Display feed follow information
-	fmt.Printf("User '%s' is following %d feeds:\n\n", currentUserName, len(feedFollows))
+	fmt.Printf("User '%s' is following %d feeds:\n\n", user.Name, len(feedFollows))
 	for i, followedFeed := range feedFollows {
 		fmt.Printf("Feed #%d: %s\n", i+1, followedFeed.FeedName)
 		fmt.Printf("  Followed on: %s\n\n", followedFeed.CreatedAt.Format(time.RFC3339))

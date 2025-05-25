@@ -58,10 +58,10 @@ func main() {
 	cmds.register("reset", handlerReset)
 	cmds.register("users", handlerListUsers)
 	cmds.register("agg", handlerAgg)
-	cmds.register("addfeed", handlerAddFeed)
-	cmds.register("feeds", handlerFeeds)
-	cmds.register("follow", handlerFollowFeed)
-	cmds.register("following", handlerFollowing)
+	cmds.register("addfeed", middlewareLoggedIn(handlerAddFeed))
+	cmds.register("feeds", middlewareLoggedIn(handlerFeeds))
+	cmds.register("follow", middlewareLoggedIn(handlerFollowFeed))
+	cmds.register("following", middlewareLoggedIn(handlerFollowing))
 
 	// Ensure at least one command argument is provided
 	if len(os.Args) < 2 {

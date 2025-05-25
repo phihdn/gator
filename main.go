@@ -1,34 +1,51 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"os"
 
 	"github.com/phihdn/gator/internal/config"
 )
 
+// state represents the application state that is passed to command handlers
+// It contains references to shared resources like configuration
+type state struct {
+	cfg *config.Config
+}
+
 func main() {
-	// Read the initial configuration
+	// Load the configuration file
 	cfg, err := config.Read()
 	if err != nil {
-		log.Fatalf("Error reading config: %v", err)
+		log.Fatalf("error reading config: %v", err)
 	}
 
-	fmt.Println("Initial config:", cfg)
+	// Initialize application state with loaded configuration
+	programState := &state{
+		cfg: &cfg,
+	}
 
-	// Set the current user to "phihdn" and update the config file
-	err = cfg.SetUser("phihdn")
+	// Initialize the commands registry
+	cmds := commands{
+		registeredCommands: make(map[string]func(*state, command) error),
+	}
+
+	// Register all available command handlers
+	cmds.register("login", handlerLogin)
+
+	// Ensure at least one command argument is provided
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: gator <command> [args...]")
+		return
+	}
+
+	// Parse command from arguments
+	cmdName := os.Args[1]  // First argument is the command name
+	cmdArgs := os.Args[2:] // Remaining arguments are passed to the command
+
+	// Execute the requested command
+	err = cmds.run(programState, command{Name: cmdName, Args: cmdArgs})
 	if err != nil {
-		log.Fatalf("Error setting user: %v", err)
+		log.Fatal(err)
 	}
-
-	fmt.Println("User set successfully")
-
-	// Read the config again to verify changes
-	updatedCfg, err := config.Read()
-	if err != nil {
-		log.Fatalf("Error reading updated config: %v", err)
-	}
-
-	fmt.Printf("Updated config: %+v\n", updatedCfg)
 }

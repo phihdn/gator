@@ -61,6 +61,7 @@ func main() {
 	cmds.register("addfeed", middlewareLoggedIn(handlerAddFeed))
 	cmds.register("feeds", middlewareLoggedIn(handlerFeeds))
 	cmds.register("follow", middlewareLoggedIn(handlerFollowFeed))
+	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollowFeed))
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
 
 	// Ensure at least one command argument is provided

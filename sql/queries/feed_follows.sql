@@ -17,10 +17,8 @@ SELECT
     feeds.name AS feed_name
 FROM
     inserted_feed_follow
-JOIN
-    users ON inserted_feed_follow.user_id = users.id
-JOIN
-    feeds ON inserted_feed_follow.feed_id = feeds.id;
+    JOIN users ON inserted_feed_follow.user_id = users.id
+    JOIN feeds ON inserted_feed_follow.feed_id = feeds.id;
 
 -- name: GetFeedFollowsForUser :many
 SELECT
@@ -33,13 +31,25 @@ SELECT
     feeds.name AS feed_name
 FROM
     feed_follows
-JOIN
-    users ON feed_follows.user_id = users.id
-JOIN
-    feeds ON feed_follows.feed_id = feeds.id
+    JOIN users ON feed_follows.user_id = users.id
+    JOIN feeds ON feed_follows.feed_id = feeds.id
 WHERE
     feed_follows.user_id = $1
 ORDER BY
     feed_follows.created_at DESC;
 
-
+-- name: DeleteFeedFollowByUserAndFeedURL :exec
+DELETE FROM
+    feed_follows
+WHERE
+    feed_follows.user_id = $1
+    AND feed_follows.feed_id = (
+        SELECT
+            id
+        FROM
+            feeds
+        WHERE
+            url = $2
+        LIMIT
+            1
+    );

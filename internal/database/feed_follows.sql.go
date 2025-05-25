@@ -31,10 +31,8 @@ SELECT
     feeds.name AS feed_name
 FROM
     inserted_feed_follow
-JOIN
-    users ON inserted_feed_follow.user_id = users.id
-JOIN
-    feeds ON inserted_feed_follow.feed_id = feeds.id
+    JOIN users ON inserted_feed_follow.user_id = users.id
+    JOIN feeds ON inserted_feed_follow.feed_id = feeds.id
 `
 
 type CreateFeedFollowParams struct {
@@ -76,6 +74,33 @@ func (q *Queries) CreateFeedFollow(ctx context.Context, arg CreateFeedFollowPara
 	return i, err
 }
 
+const deleteFeedFollowByUserAndFeedURL = `-- name: DeleteFeedFollowByUserAndFeedURL :exec
+DELETE FROM
+    feed_follows
+WHERE
+    feed_follows.user_id = $1
+    AND feed_follows.feed_id = (
+        SELECT
+            id
+        FROM
+            feeds
+        WHERE
+            url = $2
+        LIMIT
+            1
+    )
+`
+
+type DeleteFeedFollowByUserAndFeedURLParams struct {
+	UserID uuid.UUID
+	Url    string
+}
+
+func (q *Queries) DeleteFeedFollowByUserAndFeedURL(ctx context.Context, arg DeleteFeedFollowByUserAndFeedURLParams) error {
+	_, err := q.db.ExecContext(ctx, deleteFeedFollowByUserAndFeedURL, arg.UserID, arg.Url)
+	return err
+}
+
 const getFeedFollowsForUser = `-- name: GetFeedFollowsForUser :many
 SELECT
     feed_follows.id,
@@ -87,10 +112,8 @@ SELECT
     feeds.name AS feed_name
 FROM
     feed_follows
-JOIN
-    users ON feed_follows.user_id = users.id
-JOIN
-    feeds ON feed_follows.feed_id = feeds.id
+    JOIN users ON feed_follows.user_id = users.id
+    JOIN feeds ON feed_follows.feed_id = feeds.id
 WHERE
     feed_follows.user_id = $1
 ORDER BY

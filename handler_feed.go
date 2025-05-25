@@ -205,3 +205,44 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 
 	return nil
 }
+
+// handlerUnfollowFeed processes the unfollow command, which allows a user to stop following a feed
+// It takes a single URL argument and removes the feed follow record for the current user
+// Usage: gator unfollow <url>
+func handlerUnfollowFeed(s *state, cmd command, user database.User) error {
+	// Validate command arguments - exactly one arg required (url)
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("usage: %s <url>", cmd.Name)
+	}
+
+	url := cmd.Args[0]
+
+	// Find the feed by URL first, to provide better error messages
+	feed, err := s.db.GetFeedByURL(context.Background(), url)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("no feed found with URL '%s'", url)
+		}
+		return fmt.Errorf("error finding feed: %w", err)
+	}
+
+	// Delete the feed follow
+	err = s.db.DeleteFeedFollowByUserAndFeedURL(context.Background(), database.DeleteFeedFollowByUserAndFeedURLParams{
+		UserID: user.ID,
+		Url:    url,
+	})
+
+	if err != nil {
+		// Check if it was a "no rows affected" situation
+		if err == sql.ErrNoRows {
+			fmt.Printf("You are not currently following the feed with URL '%s'\n", url)
+			return nil
+		}
+		return fmt.Errorf("error unfollowing feed: %w", err)
+	}
+
+	// Print confirmation message
+	fmt.Printf("You have successfully unfollowed the feed '%s'\n", feed.Name)
+
+	return nil
+}

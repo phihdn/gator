@@ -55,6 +55,7 @@ func main() {
 	// Register all available command handlers
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerReset)
 
 	// Ensure at least one command argument is provided
 	if len(os.Args) < 2 {

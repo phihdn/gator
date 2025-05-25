@@ -60,6 +60,8 @@ func main() {
 	cmds.register("agg", handlerAgg)
 	cmds.register("addfeed", handlerAddFeed)
 	cmds.register("feeds", handlerFeeds)
+	cmds.register("follow", handlerFollowFeed)
+	cmds.register("following", handlerFollowing)
 
 	// Ensure at least one command argument is provided
 	if len(os.Args) < 2 {

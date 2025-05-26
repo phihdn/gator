@@ -63,6 +63,7 @@ func main() {
 	cmds.register("follow", middlewareLoggedIn(handlerFollowFeed))
 	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollowFeed))
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
+	cmds.register("browse", middlewareLoggedIn(handlerBrowse))
 
 	// Ensure at least one command argument is provided
 	if len(os.Args) < 2 {

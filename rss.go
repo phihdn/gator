@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"html"
 	"io"
 	"net/http"
+	"time"
 )
 
 // RSSFeed represents a parsed RSS feed
@@ -25,6 +27,44 @@ type RSSItem struct {
 	Link        string `xml:"link"`
 	Description string `xml:"description"`
 	PubDate     string `xml:"pubDate"`
+}
+
+// parsePubDate attempts to parse the pubDate string from an RSS feed
+// It tries multiple common time formats used in RSS feeds
+func parsePubDate(pubDate string) (sql.NullTime, error) {
+	if pubDate == "" {
+		return sql.NullTime{Valid: false}, nil
+	}
+
+	// List of common time formats used in RSS feeds
+	timeFormats := []string{
+		time.RFC1123Z,
+		time.RFC1123,
+		time.RFC822Z,
+		time.RFC822,
+		"Mon, 02 Jan 2006 15:04:05 -0700",
+		"Mon, 02 Jan 2006 15:04:05 MST",
+		"Mon, 02 Jan 2006 15:04:05 Z",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04:05-07:00",
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"02 Jan 2006 15:04:05 -0700",
+		"02 Jan 2006 15:04:05 MST",
+	}
+
+	for _, format := range timeFormats {
+		parsedTime, err := time.Parse(format, pubDate)
+		if err == nil {
+			return sql.NullTime{
+				Time:  parsedTime,
+				Valid: true,
+			}, nil
+		}
+	}
+
+	// If we couldn't parse the time with any format
+	return sql.NullTime{Valid: false}, fmt.Errorf("could not parse date: %s", pubDate)
 }
 
 // fetchFeed fetches and parses an RSS feed from the given URL

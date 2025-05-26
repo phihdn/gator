@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/phihdn/gator/internal/database"
 )
 
@@ -60,9 +62,46 @@ func scrapeFeed(db *database.Queries, feed database.Feed) {
 		return
 	}
 
-	// Print feed items
+	// Process and save feed items
+	savedCount := 0
 	for _, item := range feedData.Channel.Items {
-		fmt.Printf("Found post: %s\n", item.Title)
+		// Parse the publication date
+		publishedAt, err := parsePubDate(item.PubDate)
+		if err != nil {
+			log.Printf("Warning: could not parse pubDate for post '%s': %v", item.Title, err)
+		}
+
+		// Create a post in the database
+		_, err = db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+			Title:     item.Title,
+			Url:       item.Link,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid:  item.Description != "",
+			},
+			PublishedAt: publishedAt,
+			FeedID:      feed.ID,
+		})
+
+		if err != nil {
+			// Check if it's a duplicate post error (based on URL)
+			if err.Error() == "pq: duplicate key value violates unique constraint \"posts_url_key\"" {
+				// Silently ignore duplicates
+				continue
+			}
+
+			// Log other errors
+			log.Printf("Error saving post '%s': %v", item.Title, err)
+			continue
+		}
+
+		savedCount++
+		fmt.Printf("Saved post: %s\n", item.Title)
 	}
-	log.Printf("Feed %s collected, %v posts found", feed.Name, len(feedData.Channel.Items))
+
+	log.Printf("Feed %s collected, %v posts found, %v posts saved",
+		feed.Name, len(feedData.Channel.Items), savedCount)
 }
